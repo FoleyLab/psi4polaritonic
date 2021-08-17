@@ -1,5 +1,14 @@
 # Object file
 *.o
 
-# Ada Library Information
-*.ali
+# notebook checkpoints
+.ipynb_checkpoints/*
+
+# pycache files
+__pycache__/*
+
+# psi4 timer files
+timer.dat
+
+# psi4 clean files
+*.clean
