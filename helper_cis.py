@@ -55,7 +55,6 @@ def cis(molecule_string, psi4_options_dict):
     
     # ==> Nuclear Repulsion Energy <==
     E_nuc = mol.nuclear_repulsion_energy()
-    nmo = wfn.nmo()
 
     # Create instance of MintsHelper class
     mints = psi4.core.MintsHelper(wfn.basisset())
@@ -85,6 +84,8 @@ def cis(molecule_string, psi4_options_dict):
     
     # orbital energies
     eps     = np.asarray(wfn.epsilon_a())
+    print("printing eps")
+    print(eps)
     
     # ==> Nuclear Repulsion Energy <==
     E_nuc = mol.nuclear_repulsion_energy()
@@ -193,4 +194,4 @@ def cis(molecule_string, psi4_options_dict):
     # return first excited state energy
     # ground and first excited state total dipole moment
     # and g->e1 transition dipole moment
-    return ECIS, cis_dipole, tdm
+    return ECIS, CCIS, cis_dipole, tdm
