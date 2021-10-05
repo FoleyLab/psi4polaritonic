@@ -1,6 +1,7 @@
 # ==> Import Psi4, NumPy, & SciPy <==
 import psi4
 import numpy as np
+from psi4.driver.procrouting.response.scf_response import tdscf_excitations
 
 # Set Psi4 & NumPy Memory Options
 psi4.set_memory('2 GB')
@@ -31,3 +32,4 @@ mol = psi4.geometry(molstr)
 
 
 energy, wfn = psi4.energy("scf/cc-pVDZ", molecule=mol, return_wfn=True)
+res = tdscf_excitations(wfn, states=5, triplets = "NONE", tda=True)

@@ -284,6 +284,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                                     )
     # Form Htot from sum of all terms
     Htot = Hp + Hep + H1e + H2e + H2edp
+
     # now diagonalize H
     # use eigh if Hermitian
     if np.isclose(np.imag(omega_val), 0, 1e-6):
