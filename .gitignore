@@ -1,3 +1,5 @@
+# tar files
+*.tar
 # Object file
 *.o
 
