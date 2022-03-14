@@ -287,22 +287,52 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
     # now diagonalize H
     # use eigh if Hermitian
-    if np.isclose(np.imag(omega_val), 0, 1e-6):
-        ECIS, CCIS = np.linalg.eigh(Htot)
+
+    if np.isclose(np.imag(omega_val),0,1e-6):
+
+        ECIS, L_CCIS = np.linalg.eigh(Htot)
+        R_CCIS = np.copy(L_CCIS)
+        BO_L_CCIS = np.copy(L_CCIS)
+        BO_R_CCIS = np.copy(R_CCIS)
+
     # use eig if not-Hermitian.  Note that
     # numpy eig just returns the left eigenvectors
     # and does not sort the eigenvalues
     else:
-        ECIS, CCIS = np.linalg.eig(Htot)
+        ECIS, L_CCIS, R_CCIS = la.eig(Htot, left=True, right=True)
         idx = ECIS.argsort()
         ECIS = ECIS[idx]
-        CCIS = CCIS[:, idx]
+        L_CCIS = L_CCIS[:, idx]
+        R_CCIS = R_CCIS[:, idx]
+
+        # take product of L_CCIS^* and R_CCIS -> M
+        dim = ndocc * nvirt * 2 + 2
+        M = np.zeros((dim, dim), dtype=complex)
+        for i in range(0, dim):
+            for j in range(0, dim):
+                L = np.conj(L_CCIS[:,i])
+                R = R_CCIS[:,j]
+                M[i,j] = np.dot(L, R)
+
+        # perform LU decomposition on M
+        p, ML, MU = la.lu(M, permute_l=False, overwrite_a=False, check_finite=True)
+
+        # Define L' = M_L^-1 L
+        BO_L_CCIS = la.inv(ML) @ L_CCIS
+        
+        # Define R' = R M_U^-1
+        BO_R_CCIS = R_CCIS @ la.inv(MU)
+
+    
 
     cqed_cis_dict = {
-        "RHF ENERGY": scf_e,
-        "CQED-RHF ENERGY": cqed_scf_e,
-        "CQED-CIS ENERGY": ECIS,
-        "CQED-CIS L VECTORS": CCIS,
+                'RHF ENERGY' : scf_e,
+                'CQED-RHF ENERGY' : cqed_scf_e,
+                'CQED-CIS ENERGY' : ECIS,
+                'ORIGINAL L VECTROS' : L_CCIS,
+                'CQED-CIS L VECTORS' : BO_L_CCIS,
+                'CQED-CIS R VECTORS' : BO_R_CCIS,
+                'CQED-CIS H MATRIX' : Htot
     }
 
     return cqed_cis_dict
