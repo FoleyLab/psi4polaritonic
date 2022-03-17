@@ -1,2 +1,0 @@
-import fortecubeview
-fortecubeview.plot()
