@@ -19,7 +19,7 @@ import psi4
 import numpy as np
 import scipy.linalg as la
 import time
-from helper_cqed_rhf import cqed_rhf
+from helper_CQED_RHF import cqed_rhf
 
 
 def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
@@ -284,70 +284,24 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                                     )
     # Form Htot from sum of all terms
     Htot = Hp + Hep + H1e + H2e + H2edp
-
     # now diagonalize H
     # use eigh if Hermitian
-
-    if np.isclose(np.imag(omega_val),0,1e-6):
-
-        ECIS, L_CCIS = np.linalg.eigh(Htot)
-        R_CCIS = np.copy(L_CCIS)
-    <<<<<<< HEAD
-        BO_L_CCIS = np.copy(L_CCIS)
-        BO_R_CCIS = np.copy(R_CCIS)
-    =======
-    >>>>>>> 362a2dd7397390ee018895d726525cc460c07878
-
+    if np.isclose(np.imag(omega_val), 0, 1e-6):
+        ECIS, CCIS = np.linalg.eigh(Htot)
     # use eig if not-Hermitian.  Note that
     # numpy eig just returns the left eigenvectors
     # and does not sort the eigenvalues
     else:
-        ECIS, L_CCIS, R_CCIS = la.eig(Htot, left=True, right=True)
+        ECIS, CCIS = np.linalg.eig(Htot)
         idx = ECIS.argsort()
         ECIS = ECIS[idx]
-        L_CCIS = L_CCIS[:, idx]
-        R_CCIS = R_CCIS[:, idx]
-
-        # take product of L_CCIS^* and R_CCIS -> M
-        dim = ndocc * nvirt * 2 + 2
-        M = np.zeros((dim, dim), dtype=complex)
-        for i in range(0, dim):
-            for j in range(0, dim):
-                L = np.conj(L_CCIS[:,i])
-                R = R_CCIS[:,j]
-                M[i,j] = np.dot(L, R)
-
-        # perform LU decomposition on M
-        p, ML, MU = la.lu(M, permute_l=False, overwrite_a=False, check_finite=True)
-
-        # Define L' = M_L^-1 L
-    <<<<<<< HEAD
-        BO_L_CCIS = la.inv(ML) @ L_CCIS
-        
-        # Define R' = R M_U^-1
-        BO_R_CCIS = R_CCIS @ la.inv(MU)
-    =======
-        L_CCIS = la.inv(ML) @ L_CCIS
-        
-        # Define R' = R M_U^-1
-        R_CCIS = R_CCIS @ la.inv(MU)
-    >>>>>>> 362a2dd7397390ee018895d726525cc460c07878
-
-
+        CCIS = CCIS[:, idx]
 
     cqed_cis_dict = {
-                'RHF ENERGY' : scf_e,
-                'CQED-RHF ENERGY' : cqed_scf_e,
-                'CQED-CIS ENERGY' : ECIS,
-    <<<<<<< HEAD
-                'ORIGINAL L VECTROS' : L_CCIS,
-                'CQED-CIS L VECTORS' : BO_L_CCIS,
-                'CQED-CIS R VECTORS' : BO_R_CCIS,
-    =======
-                'CQED-CIS L VECTORS' : L_CCIS,
-                'CQED-CIS R VECTORS' : R_CCIS,
-    >>>>>>> 362a2dd7397390ee018895d726525cc460c07878
-                'CQED-CIS H MATRIX' : Htot
+        "RHF ENERGY": scf_e,
+        "CQED-RHF ENERGY": cqed_scf_e,
+        "CQED-CIS ENERGY": ECIS,
+        "CQED-CIS L VECTORS": CCIS,
     }
 
     return cqed_cis_dict
