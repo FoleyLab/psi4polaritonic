@@ -71,12 +71,17 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
 
     # grab all transformation vectors and store to a numpy array
     C = np.asarray(wfn.Ca())
+<<<<<<< HEAD
     print("C")
     print(len(C))
     # use canonical RHF orbitals for guess CQED-RHF orbitals
     Cocc = C[:, :ndocc]
     print("Cocc")
     print(len(Cocc))
+=======
+    # use canonical RHF orbitals for guess CQED-RHF orbitals
+    Cocc = C[:, :ndocc]
+>>>>>>> 362a2dd7397390ee018895d726525cc460c07878
     # form guess density
     D = np.einsum("pi,qi->pq", Cocc, Cocc)  # [Szabo:1996] Eqn. 3.145, pp. 139
 

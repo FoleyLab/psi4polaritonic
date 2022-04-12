@@ -292,8 +292,11 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
         ECIS, L_CCIS = np.linalg.eigh(Htot)
         R_CCIS = np.copy(L_CCIS)
+<<<<<<< HEAD
         BO_L_CCIS = np.copy(L_CCIS)
         BO_R_CCIS = np.copy(R_CCIS)
+=======
+>>>>>>> 362a2dd7397390ee018895d726525cc460c07878
 
     # use eig if not-Hermitian.  Note that
     # numpy eig just returns the left eigenvectors
@@ -318,10 +321,17 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
         p, ML, MU = la.lu(M, permute_l=False, overwrite_a=False, check_finite=True)
 
         # Define L' = M_L^-1 L
+<<<<<<< HEAD
         BO_L_CCIS = la.inv(ML) @ L_CCIS
         
         # Define R' = R M_U^-1
         BO_R_CCIS = R_CCIS @ la.inv(MU)
+=======
+        L_CCIS = la.inv(ML) @ L_CCIS
+        
+        # Define R' = R M_U^-1
+        R_CCIS = R_CCIS @ la.inv(MU)
+>>>>>>> 362a2dd7397390ee018895d726525cc460c07878
 
     
 
@@ -329,9 +339,14 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                 'RHF ENERGY' : scf_e,
                 'CQED-RHF ENERGY' : cqed_scf_e,
                 'CQED-CIS ENERGY' : ECIS,
+<<<<<<< HEAD
                 'ORIGINAL L VECTROS' : L_CCIS,
                 'CQED-CIS L VECTORS' : BO_L_CCIS,
                 'CQED-CIS R VECTORS' : BO_R_CCIS,
+=======
+                'CQED-CIS L VECTORS' : L_CCIS,
+                'CQED-CIS R VECTORS' : R_CCIS,
+>>>>>>> 362a2dd7397390ee018895d726525cc460c07878
                 'CQED-CIS H MATRIX' : Htot
     }
 

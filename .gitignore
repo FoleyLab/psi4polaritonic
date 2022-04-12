@@ -1,5 +1,16 @@
+# tar files
+*.tar
 # Object file
 *.o
+
+# xyz files
+*.xyz
+
+# output files
+*.out
+
+# dat files
+*.dat
 
 # notebook checkpoints
 .ipynb_checkpoints/*
@@ -12,3 +23,6 @@ timer.dat
 
 # psi4 clean files
 *.clean
+
+# cube files
+*.cube

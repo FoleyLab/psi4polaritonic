@@ -63,13 +63,14 @@ def cis(molecule_string, psi4_options_dict):
     
     # number of doubly occupied orbitals
     ndocc   = wfn.nalpha()
+    print(ndocc)
     
     # total number of orbitals
     nmo     = wfn.nmo()
-    
+    print(nmo)
     # number of virtual orbitals
     nvirt   = nmo - ndocc
-    
+    print(nvirt)
     # grab all transformation vectors and store to a numpy array!
     C = np.asarray(wfn.Ca())
     

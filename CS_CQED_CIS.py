@@ -29,7 +29,11 @@ __date__ = "2021-08-19"
 # ==> Import Psi4, numpy, and helper_CS_CQED_CIS <==
 import psi4
 import numpy as np
+<<<<<<< HEAD
 from helper_CS_CQED_CIS import *
+=======
+from helper_cs_cqed_cis import *
+>>>>>>> 362a2dd7397390ee018895d726525cc460c07878
 from psi4.driver.procrouting.response.scf_response import tdscf_excitations
 
 # Set Psi4 & NumPy Memory Options
