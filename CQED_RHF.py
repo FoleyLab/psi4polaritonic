@@ -32,6 +32,7 @@ h2o_options_dict = {
     "scf_type": "pk",
     "e_convergence": 1e-12,
     "d_convergence": 1e-12,
+    "No Quadrupole": True,
 }
 
 
