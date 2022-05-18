@@ -20,7 +20,7 @@ import numpy as np
 import time
 
 
-def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict, quadrupole_term=True):
+def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
     """Computes the QED-RHF energy and density
 
     Arguments
@@ -171,10 +171,6 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict, quadrupole_term=
     # Eq. (11) in [McTague:2021:ChemRxiv]
     H = H_0 + Q_PF + d_PF
 
-    # option to remove quadrupole terms
-    if quadrupole_term==False:
-        H -= Q_PF 
-
     # Overlap for DIIS
     S = mints.ao_overlap()
     # Orthogonalizer A = S^(-1/2) using Psi4's matrix power.
@@ -267,10 +263,6 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict, quadrupole_term=
         # update Core Hamiltonian
         H = H_0 + Q_PF + d_PF
 
-        # option to remove quadrupole term
-        if quadrupole_term==False:
-            H -= Q_PF 
-
         # update dipole energetic contribution, Eq. (14) in [McTague:2021:ChemRxiv]
         d_c = (
             0.5 * l_dot_mu_nuc ** 2
@@ -300,10 +292,6 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict, quadrupole_term=
 
     CQED_SCF_E_D_PF = np.einsum("pq,pq->", 2 * d_PF, D)
     CQED_SCF_E_Q_PF = np.einsum("pq,pq->", 2 * Q_PF, D)
-
-    # option to remove quadrupole terms
-    if quadrupole_term==False:
-        CQED_SCF_E_Q_PF = 0
 
     assert np.isclose(
         SCF_E_One + SCF_E_Two + CQED_SCF_E_D_PF + CQED_SCF_E_Q_PF + CQED_SCF_E_Two,
