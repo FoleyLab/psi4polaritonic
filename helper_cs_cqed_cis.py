@@ -19,10 +19,10 @@ import psi4
 import numpy as np
 import scipy.linalg as la
 import time
-from helper_CQED_RHF import cqed_rhf
+from helper_cqed_rhf import cqed_rhf
 
 
-def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
+def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, diag=True):
     """Computes the QED-RHF energy and density
 
     Arguments
@@ -252,7 +252,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                                 * (i == j)
                             )
                             # now handle diagonal in electronic term
-                            if a == b and i == j and s == t + 1:
+                            if a == b and i == j and s == t + 1 and diag==True:
                                 # l dot <mu> term
                                 Hep[ias, jbt] += (
                                     np.sqrt(t + 1)
@@ -269,7 +269,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                                     )
 
                             # now handle diagonal in electronic term
-                            if a == b and i == j and s == t - 1:
+                            if a == b and i == j and s == t - 1 and diag==True:
                                 # l dot <mu> term
                                 Hep[ias, jbt] += (
                                     np.sqrt(t) * np.sqrt(omega_val / 2) * l_dot_mu_exp
