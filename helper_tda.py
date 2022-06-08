@@ -219,11 +219,11 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                         # diagonal terms (WHICH NEEDS MODIFICATION!  THINK THIS WHOLE BLOCK CAN GO SINCE THE ONLY 
                         # SURVIVNIG DIAGONAL TERMS ARE CAPTURED IMMEDIATEDLY ABOVE)   
                         # expectation value term 
-                        G[ia, jb] += np.sqrt(omega_val / 2) * l_dot_mu_exp 
+                        #G[ia, jb] += np.sqrt(omega_val / 2) * l_dot_mu_exp 
                         
                         # electronic term
-                        for k in range(0, ndocc):
-                            G[ia, jb] -= np.sqrt(omega_val / 2) * l_dot_mu_el[k, k]
+                        #for k in range(0, ndocc):
+                        #    G[ia, jb] -= np.sqrt(omega_val / 2) * l_dot_mu_el[k, k]
     # define the offsets
     R0_offset = 0
     S0_offset = 1
