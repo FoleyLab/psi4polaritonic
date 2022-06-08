@@ -22,7 +22,7 @@ import time
 from helper_cqed_rhf import cqed_rhf
 
 
-def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, diag=True):
+def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     """Computes the QED-RHF energy and density
 
     Arguments
@@ -162,145 +162,126 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, di
     # check to see if d_c what we have from CQED-RHF calculation
     assert np.isclose(d_c, cqed_rhf_dict["DIPOLE ENERGY"])
 
-    # create Hamiltonian for elements H[ias, jbt]
-    Htot = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
-    Hep = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
-    H1e = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
-    H2e = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
-    H2edp = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
-    Hp = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
-
-    # elements corresponding to <s|<\Phi_0 | H | \Phi_0>|t>
-    # Eq. (16) of [McTague:2021:ChemRxiv]
-    Hp[0, 0] = 0.0
-    Hp[1, 1] = omega_val
-
-    # elements corresponding to <s|<\Phi_0 | H | \Phi_i^a>|t>
-    # Eq. (17) of [McTague:2021:ChemRxiv]
+    # build g matrix and its adjoint
+    g = np.zeros((1,ndocc * nvirt), dtype=complex)
+    g_dag = np.zeros((ndocc * nvirt, 1), dtype=complex)
     for i in range(0, ndocc):
         for a in range(0, nvirt):
             A = a + ndocc
-            ia0 = 2 * (i * nvirt + a) + 2
-            ia1 = 2 * (i * nvirt + a) + 3
-            Hep[0, ia1] = Hep[ia1, 0] = (
+            ia = i * nvirt + a 
+            g[0,ia] = (
                 -np.sqrt(omega_val) * l_dot_mu_el[i, A]
             )
-            Hep[1, ia0] = Hep[ia0, 1] = (
-                -np.sqrt(omega_val) * l_dot_mu_el[i, A]
-            ) 
 
-    # elements corresponding to <s|<\Phi_i^a| H | \Phi_j^b|t>
-    # Eq. (18) of [McTague:2021:ChemRxiv]
+    # Now compute the adjoint of g
+    g_dag = np.conj(g).T
+
+    # get the A + \Delta matrix and the G matrix, since both 
+    # involive <S | H | S> terms where |S> represents singly-excited determinants
+    A_p_D = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
+    G = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
+    Omega = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
     for i in range(0, ndocc):
         for a in range(0, nvirt):
             A = a + ndocc
-            for s in range(0, 2):
-                ias = 2 * (i * nvirt + a) + s + 2
+            ia = i * nvirt + a
+            
+            for j in range(0, ndocc):
+                for b in range(0, nvirt):
+                    B = b + ndocc
+                    jb = j * nvirt + b
+                    
+                    # ERI contribution to A + \Delta
+                    A_p_D[ia, jb] = (2.0 * ovov[i, a, j, b] - oovv[i, j, a, b])
+                    
+                    # 2-electron dipole contribution to A + \Delta
+                    A_p_D[ia, jb] += 2.0 * l_dot_mu_el[i, A] * l_dot_mu_el[j, B]
+                    A_p_D[ia, jb] -= l_dot_mu_el[i, j] * l_dot_mu_el[A, B]
+                    
+                    # bilinear coupling contributions to G
+                    # off-diagonal terms (plus occasional diagonal terms)
+                    G[ia, jb] += np.sqrt(omega_val / 2) * l_dot_mu_el[i, j] * (a == b)
+                    G[ia, jb] -= np.sqrt(omega_val / 2) * l_dot_mu_el[A, B] * (i == j)
+                    
+                    # diagonal contributions to A_p_D, G, and \Omega matrix
+                    if i == j and a == b:
+                        # orbital energy contribution to A + \Delta ... this also includes 
+                        # the DSE terms that contributed to the CQED-RHF energy 
+                        A_p_D[ia, jb] += eps_v[a] 
+                        A_p_D[ia, jb] -= eps_o[i] 
+                        
+                        # dipole constant energy contribution to A + \Delta
+                        A_p_D[ia, jb] += d_c 
+                        
+                        # diagonal \omega term
+                        Omega[ia, jb] = omega_val
+                        
+                        # diagonal terms (WHICH NEEDS MODIFICATION!  THINK THIS WHOLE BLOCK CAN GO SINCE THE ONLY 
+                        # SURVIVNIG DIAGONAL TERMS ARE CAPTURED IMMEDIATEDLY ABOVE)   
+                        # expectation value term 
+                        G[ia, jb] += np.sqrt(omega_val / 2) * l_dot_mu_exp 
+                        
+                        # electronic term
+                        for k in range(0, ndocc):
+                            G[ia, jb] -= np.sqrt(omega_val / 2) * l_dot_mu_el[k, k]
+    # define the offsets
+    R0_offset = 0
+    S0_offset = 1
+    R1_offset = ndocc * nvirt + 1
+    S1_offset = ndocc * nvirt + 2
 
-                for j in range(0, ndocc):
-                    for b in range(0, nvirt):
-                        B = b + ndocc
-                        for t in range(0, 2):
-                            jbt = 2 * (j * nvirt + b) + t + 2
-                            # ERIs
-                            H2e[ias, jbt] = (
-                                2.0 * ovov[i, a, j, b] - oovv[i, j, a, b]
-                            ) * (s == t)
-                            # 2-electron dipole terms
-                            # ordinary
-                            H2edp[ias, jbt] += (
-                                2.0 * l_dot_mu_el[i, A] * l_dot_mu_el[j, B]
-                            ) * (s == t)
-                            # exchange
-                            H2edp[ias, jbt] -= (
-                                l_dot_mu_el[i, j] * l_dot_mu_el[A, B] * (s == t)
-                            )
-                            # orbital energies from CQED-RHF
-                            H1e[ias, jbt] += eps_v[a] * (s == t) * (a == b) * (i == j)
-                            H1e[ias, jbt] -= eps_o[i] * (s == t) * (a == b) * (i == j)
-                            # photonic and dipole energy term
-                            Hp[ias, jbt] += (
-                                (omega_val * t) * (s == t) * (i == j) * (a == b)
-                            )
-                            # bilinear coupling - off-diagonals first
-                            Hep[ias, jbt] += (
-                                np.sqrt(t + 1)
-                                * np.sqrt(omega_val / 2)
-                                * l_dot_mu_el[i, j]
-                                * (s == t + 1)
-                                * (a == b)
-                            )
-                            Hep[ias, jbt] += (
-                                np.sqrt(t)
-                                * np.sqrt(omega_val / 2)
-                                * l_dot_mu_el[i, j]
-                                * (s == t - 1)
-                                * (a == b)
-                            )
-                            Hep[ias, jbt] -= (
-                                np.sqrt(t + 1)
-                                * np.sqrt(omega_val / 2)
-                                * l_dot_mu_el[A, B]
-                                * (s == t + 1)
-                                * (i == j)
-                            )
-                            Hep[ias, jbt] -= (
-                                np.sqrt(t)
-                                * np.sqrt(omega_val / 2)
-                                * l_dot_mu_el[A, B]
-                                * (s == t - 1)
-                                * (i == j)
-                            )
-                            # now handle diagonal in electronic term
-                            if a == b and i == j and s == t + 1 and diag==True:
-                                # l dot <mu> term
-                                Hep[ias, jbt] += (
-                                    np.sqrt(t + 1)
-                                    * np.sqrt(omega_val / 2)
-                                    * l_dot_mu_exp
-                                )
-                                # l dot mu terms
-                                for k in range(0, ndocc):
-                                    # sum over occupied indices
-                                    Hep[ias, jbt] -= (
-                                        np.sqrt(t + 1)
-                                        * np.sqrt(omega_val / 2)
-                                        * l_dot_mu_el[k, k]
-                                    )
+    # create Hamiltonian for elements H[ias, jbt]
+    Htot = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
 
-                            # now handle diagonal in electronic term
-                            if a == b and i == j and s == t - 1 and diag==True:
-                                # l dot <mu> term
-                                Hep[ias, jbt] += (
-                                    np.sqrt(t) * np.sqrt(omega_val / 2) * l_dot_mu_exp
-                                )
-                                # l dot mu terms
-                                for k in range(0, ndocc):
-                                    # sum over occupied indices
-                                    Hep[ias, jbt] -= (
-                                        np.sqrt(t)
-                                        * np.sqrt(omega_val / 2)
-                                        * l_dot_mu_el[k, k]
-                                    )
-    # Form Htot from sum of all terms
-    Htot = Hp + Hep + H1e + H2e + H2edp
-    # now diagonalize H
-    # use eigh if Hermitian
-    if np.isclose(np.imag(omega_val), 0, 1e-6):
-        ECIS, CCIS = np.linalg.eigh(Htot)
-    # use eig if not-Hermitian.  Note that
-    # numpy eig just returns the left eigenvectors
-    # and does not sort the eigenvalues
-    else:
-        ECIS, CCIS = np.linalg.eig(Htot)
-        idx = ECIS.argsort()
-        ECIS = ECIS[idx]
-        CCIS = CCIS[:, idx]
+    # build the supermatrix
+    # g coupling
+    Htot[R0_offset:S0_offset, S1_offset:] = g
+    Htot[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
+    Htot[R1_offset:S1_offset, S0_offset:R1_offset] = g
+    Htot[S1_offset:,          R0_offset:S0_offset] = g_dag
+
+    # A + \Delta 
+    Htot[S0_offset:R1_offset, S0_offset:R1_offset] = A_p_D
+
+    # omega
+    Htot[R1_offset, R1_offset] = omega_val
+
+    # A + \Delta + \Omega
+    Htot[S1_offset:, S1_offset:] = A_p_D + Omega
+
+    # G coupling
+    Htot[S1_offset:,S0_offset:R1_offset] = G
+    Htot[S0_offset:R1_offset, S1_offset:] = G
+
+    # create Hamiltonian for elements H[ias, jbt]
+    H_TDA_RWA = np.zeros((ndocc * nvirt + 1, ndocc * nvirt + 1), dtype=complex)
+
+    # define the TDA offsets
+    TDA_S0_offset = 0
+    TDA_R1_offset = ndocc * nvirt
+
+
+    # build the supermatrix
+    # g coupling
+    H_TDA_RWA[TDA_R1_offset:, TDA_S0_offset:TDA_R1_offset] = g
+    H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_R1_offset:] = g_dag
+
+    # A + \Delta
+    H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_S0_offset:TDA_R1_offset] = A_p_D
+
+    # omega
+    H_TDA_RWA[TDA_R1_offset, TDA_R1_offset] = omega_val
+
+    # diagonalize the total QED-CIS matrix and the 
+    ECIS, CCIS = np.linalg.eigh(Htot)
+
+    ETDA, CTDA = np.linalg.eigh(H_TDA_RWA)
 
     cqed_cis_dict = {
         "RHF ENERGY": scf_e,
         "CQED-RHF ENERGY": cqed_scf_e,
         "CQED-CIS ENERGY": ECIS,
+        "CQED-TDA-RWA ENERGY": ETDA,
         "CQED-CIS L VECTORS": CCIS,
     }
 
