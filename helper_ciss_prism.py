@@ -233,59 +233,93 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     R1_offset = ndocc * nvirt + 1
     S1_offset = ndocc * nvirt + 2
 
-    # create Hamiltonian for elements H[ias, jbt]
-    Htot = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
+    # CISS Hamiltonians
+    H_CISS_PF = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
+    H_CISS_JC = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
 
     # build the supermatrix
     # g coupling
-    Htot[R0_offset:S0_offset, S1_offset:] = g
-    Htot[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
-    Htot[R1_offset:S1_offset, S0_offset:R1_offset] = g
-    Htot[S1_offset:,          R0_offset:S0_offset] = g_dag
+    # PF
+    H_CISS_PF[R0_offset:S0_offset, S1_offset:] = g
+    H_CISS_PF[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
+    H_CISS_PF[R1_offset:S1_offset, S0_offset:R1_offset] = g
+    H_CISS_PF[S1_offset:,          R0_offset:S0_offset] = g_dag
+    # JC
+    H_CISS_JC[R0_offset:S0_offset, S1_offset:] = g
+    H_CISS_JC[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
+    H_CISS_JC[R1_offset:S1_offset, S0_offset:R1_offset] = g
+    H_CISS_JC[S1_offset:,          R0_offset:S0_offset] = g_dag
 
-    # A + \Delta 
-    Htot[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix + D_matrix
+    # A + \Delta for PF
+    H_CISS_PF[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix + D_matrix
+
+    # A for JC
+    H_CISS_JC[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix
 
     # omega
-    Htot[R1_offset, R1_offset] = omega_val
+    # PF
+    H_CISS_PF[R1_offset, R1_offset] = omega_val
+    # JC
+    H_CISS_JC[R1_offset, R1_offset] = omega_val
 
-    # A + \Delta + \Omega
-    Htot[S1_offset:, S1_offset:] = A_matrix + D_matrix + Omega
+    # A + \Delta + \Omega for PF
+    H_CISS_PF[S1_offset:, S1_offset:] = A_matrix + D_matrix + Omega
+
+    # A + \Omega for JC
+    H_CISS_JC[S1_offset:, S1_offset:] = A_matrix + Omega
 
     # G coupling
-    Htot[S1_offset:,S0_offset:R1_offset] = G
-    Htot[S0_offset:R1_offset, S1_offset:] = G
+    # PF
+    H_CISS_PF[S1_offset:,S0_offset:R1_offset] = G
+    H_CISS_PF[S0_offset:R1_offset, S1_offset:] = G
+    # JC
+    H_CISS_JC[S1_offset:,S0_offset:R1_offset] = G
+    H_CISS_JC[S0_offset:R1_offset, S1_offset:] = G
 
-    # create Hamiltonian for elements H[ias, jbt]
-    H_TDA_RWA = np.zeros((ndocc * nvirt + 1, ndocc * nvirt + 1), dtype=complex)
+    # CIS Hamiltonians
+    H_CIS_PF = np.zeros((ndocc * nvirt + 1, ndocc * nvirt + 1), dtype=complex)
+    H_CIS_JC = np.zeros((ndocc * nvirt + 1, ndocc * nvirt + 1), dtype=complex)
 
-    # define the TDA offsets
-    TDA_S0_offset = 0
-    TDA_R1_offset = ndocc * nvirt
+    # define the CIS offsets
+    CIS_S0_offset = 0
+    CIS_R1_offset = ndocc * nvirt
 
 
     # build the supermatrix
     # g coupling
-    H_TDA_RWA[TDA_R1_offset:, TDA_S0_offset:TDA_R1_offset] = g
-    H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_R1_offset:] = g_dag
+    # PF
+    H_CIS_PF[CIS_R1_offset:, CIS_S0_offset:CIS_R1_offset] = g
+    H_CIS_PF[CIS_S0_offset:CIS_R1_offset, CIS_R1_offset:] = g_dag
+    # JC
+    H_CIS_JC[CIS_R1_offset:, CIS_S0_offset:CIS_R1_offset] = g
+    H_CIS_JC[CIS_S0_offset:CIS_R1_offset, CIS_R1_offset:] = g_dag
 
-    # A + \Delta
-    H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_S0_offset:TDA_R1_offset] = A_matrix + D_matrix
+    # A + \Delta for PF
+    H_CIS_PF[CIS_S0_offset:CIS_R1_offset, CIS_S0_offset:CIS_R1_offset] = A_matrix + D_matrix
+    # A  for JF
+    H_CIS_PF[CIS_S0_offset:CIS_R1_offset, CIS_S0_offset:CIS_R1_offset] = A_matrix
 
     # omega
-    H_TDA_RWA[TDA_R1_offset, TDA_R1_offset] = omega_val
+    # PF
+    H_CIS_PF[CIS_R1_offset, CIS_R1_offset] = omega_val
+    # JC
+    H_CIS_JC[CIS_R1_offset, CIS_R1_offset] = omega_val
 
     # diagonalize the total QED-CIS matrix and the 
-    ECIS, CCIS = np.linalg.eigh(Htot)
+    E_CISS_PF, C_CISS_PF = np.linalg.eigh(H_CISS_PF)
+    E_CISS_JC, C_CISS_JC = np.linalg.eigh(H_CISS_JC)
 
-    ETDA, CTDA = np.linalg.eigh(H_TDA_RWA)
+    E_CIS_PF, C_CIS_PF = np.linalg.eigh(H_CIS_PF)
+    E_CIS_JC, C_CIS_JC = np.linalg.eigh(H_CIS_JC)
+
 
     cqed_cis_dict = {
         "RHF ENERGY": scf_e,
         "CQED-RHF ENERGY": cqed_scf_e,
-        "CQED-CIS ENERGY": ECIS,
-        "CQED-TDA-RWA ENERGY": ETDA,
-        "CQED-CIS L VECTORS": CCIS,
+        "CISS-PF ENERGY": E_CISS_PF,
+        "CISS-JC ENERGY": E_CISS_JC,
+        "CIS-PF ENERGY": E_CIS_PF,
+        "CIS-JC ENERGY": E_CIS_JC,
     }
 
     return cqed_cis_dict
