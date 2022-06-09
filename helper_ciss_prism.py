@@ -1,9 +1,9 @@
 """
-Helper function for CQED-CIS in the coherent state basis
+Helper function for "prism of QED-CISS methods" in the coherent state basis
 
 References:
     Equations and algorithms from 
-    [Haugland:2020:041043], [DePrince:2021:094112], and [McTague:2021:ChemRxiv] 
+    [Haugland:2020:041043], [DePrince:2021:094112], [McTague:2021:ChemRxiv], [Yang:2021:064107] 
 
 """
 
@@ -42,12 +42,14 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
     Returns
     -------
-    cqed_cis_dictionary : dictionary
+    cqed_ciss_dictionary : dictionary
         Contains important quantities from the cqed_rhf calculation, with keys including:
             'RHF ENERGY' -> result of canonical RHF calculation using psi4 defined by molecule_string and psi4_options_dict
-            'CQED-RHF ENERGY' -> result of CQED-RHF calculation, see Eq. (13) of [McTague:2021:ChemRxiv]
-            'CQED-CIS ENERGY' -> numpy array of complex floats comprising energy eigenvalues of CQED-CIS Hamiltonian
-            'CQED-CIS L VECTORS' -> numpy array of complex floats comprising the left eigenvectors of CQED-CIS Hamiltonian
+            'RHF-PF ENERGY' -> result of RHF calculation with PF Hamiltonian
+            'CISS-PF ENERGY' -> eigenvalues from the CISS-PF Hamiltonian
+            'CIS-PF ENERGY' -> eigenvalues from the CIS-PF Hamiltonian
+            'CISS-JC ENERGY' -> eigenvalues from the CISS-JC Hamiltonian
+            'CIS-JC ENERGY' -> eigenvalues from the CIS-JC Hamiltonian
 
     Example
     -------
@@ -178,7 +180,8 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
     # get the A + \Delta matrix and the G matrix, since both 
     # involive <S | H | S> terms where |S> represents singly-excited determinants
-    A_p_D = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
+    A_matrix = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
+    D_matrix = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
     G = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
     Omega = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=complex)
     for i in range(0, ndocc):
@@ -192,11 +195,11 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                     jb = j * nvirt + b
                     
                     # ERI contribution to A + \Delta
-                    A_p_D[ia, jb] = (2.0 * ovov[i, a, j, b] - oovv[i, j, a, b])
+                    A_matrix[ia, jb] = (2.0 * ovov[i, a, j, b] - oovv[i, j, a, b])
                     
                     # 2-electron dipole contribution to A + \Delta
-                    A_p_D[ia, jb] += 2.0 * l_dot_mu_el[i, A] * l_dot_mu_el[j, B]
-                    A_p_D[ia, jb] -= l_dot_mu_el[i, j] * l_dot_mu_el[A, B]
+                    D_matrix[ia, jb] += 2.0 * l_dot_mu_el[i, A] * l_dot_mu_el[j, B]
+                    D_matrix[ia, jb] -= l_dot_mu_el[i, j] * l_dot_mu_el[A, B]
                     
                     # bilinear coupling contributions to G
                     # off-diagonal terms (plus occasional diagonal terms)
@@ -207,11 +210,11 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                     if i == j and a == b:
                         # orbital energy contribution to A + \Delta ... this also includes 
                         # the DSE terms that contributed to the CQED-RHF energy 
-                        A_p_D[ia, jb] += eps_v[a] 
-                        A_p_D[ia, jb] -= eps_o[i] 
+                        A_matrix[ia, jb] += eps_v[a] 
+                        A_matrix[ia, jb] -= eps_o[i] 
                         
                         # dipole constant energy contribution to A + \Delta
-                        A_p_D[ia, jb] += d_c 
+                        D_matrix[ia, jb] += d_c 
                         
                         # diagonal \omega term
                         Omega[ia, jb] = omega_val
@@ -241,13 +244,13 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     Htot[S1_offset:,          R0_offset:S0_offset] = g_dag
 
     # A + \Delta 
-    Htot[S0_offset:R1_offset, S0_offset:R1_offset] = A_p_D
+    Htot[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix + D_matrix
 
     # omega
     Htot[R1_offset, R1_offset] = omega_val
 
     # A + \Delta + \Omega
-    Htot[S1_offset:, S1_offset:] = A_p_D + Omega
+    Htot[S1_offset:, S1_offset:] = A_matrix + D_matrix + Omega
 
     # G coupling
     Htot[S1_offset:,S0_offset:R1_offset] = G
@@ -267,7 +270,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_R1_offset:] = g_dag
 
     # A + \Delta
-    H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_S0_offset:TDA_R1_offset] = A_p_D
+    H_TDA_RWA[TDA_S0_offset:TDA_R1_offset, TDA_S0_offset:TDA_R1_offset] = A_matrix + D_matrix
 
     # omega
     H_TDA_RWA[TDA_R1_offset, TDA_R1_offset] = omega_val
