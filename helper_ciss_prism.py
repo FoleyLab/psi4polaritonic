@@ -297,7 +297,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     # A + \Delta for PF
     H_CIS_PF[CIS_S0_offset:CIS_R1_offset, CIS_S0_offset:CIS_R1_offset] = A_matrix + D_matrix
     # A  for JF
-    H_CIS_PF[CIS_S0_offset:CIS_R1_offset, CIS_S0_offset:CIS_R1_offset] = A_matrix
+    H_CIS_JC[CIS_S0_offset:CIS_R1_offset, CIS_S0_offset:CIS_R1_offset] = A_matrix
 
     # omega
     # PF
