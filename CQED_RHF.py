@@ -3,6 +3,8 @@ Simple demonstration of CQED-RHF method on the water molecule
 coupled to a strong photon field with comparison to results from
 code in the hilbert package described in [DePrince:2021:094112] and available
 at https://github.com/edeprince3/hilbert
+JJF Note: This implementation utilizes only electronic dipole contributions 
+    and ignore superflous nuclear dipole terms!
 
 """
 

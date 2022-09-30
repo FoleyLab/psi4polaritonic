@@ -3,6 +3,8 @@ Helper function for CQED_RHF
 References:
     Equations and algorithms from 
     [Haugland:2020:041043], [DePrince:2021:094112], and [McTague:2021:ChemRxiv] 
+    JJF Note: This implementation utilizes only electronic dipole contributions 
+    and ignore superflous nuclear dipole terms!
 """
 
 __authors__ = ["Jon McTague", "Jonathan Foley"]
