@@ -22,7 +22,7 @@ import time
 from helper_cqed_rhf import cqed_rhf
 
 
-def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, diag=True):
+def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     """Computes the QED-RHF energy and density
 
     Arguments
@@ -54,7 +54,6 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, di
     >>> cqed_cis_dictionary = cs_cqed_cis([0., 0., 1e-2], 0.2-0.001j, '''\nMg\nH 1 1.7\nsymmetry c1\n1 1\n''', psi4_options_dictionary)
 
     """
-
     # define geometry using the molecule_string
     mol = psi4.geometry(molecule_string)
     # define options for the calculation
@@ -70,14 +69,13 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, di
     cqed_scf_e = cqed_rhf_dict["CQED-RHF ENERGY"]
     wfn = cqed_rhf_dict["PSI4 WFN"]
     C = cqed_rhf_dict["CQED-RHF C"]
+    D = cqed_rhf_dict["CQED-RHF DENSITY MATRIX"]
     eps = cqed_rhf_dict["CQED-RHF EPS"]
-    cqed_rhf_dipole_moment = cqed_rhf_dict["CQED-RHF DIPOLE MOMENT"]
 
     # Create instance of MintsHelper class
     mints = psi4.core.MintsHelper(wfn.basisset())
 
     # Grab data from wavfunction
-
     # number of doubly occupied orbitals
     ndocc = wfn.nalpha()
 
@@ -117,32 +115,27 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, di
     # strip out virtual orbital energies, eps_v spans 0..nvirt-1
     eps_v = eps[ndocc:]
 
-    # Extra terms for Pauli-Fierz Hamiltonian
-    # nuclear dipole
-    mu_nuc_x = mol.nuclear_dipole()[0]
-    mu_nuc_y = mol.nuclear_dipole()[1]
-    mu_nuc_z = mol.nuclear_dipole()[2]
-
-    # l \cdot \mu_nuc for d_c
-    l_dot_mu_nuc = lambda_vector[0] * mu_nuc_x
-    l_dot_mu_nuc += lambda_vector[1] * mu_nuc_y
-    l_dot_mu_nuc += lambda_vector[2] * mu_nuc_z
-
     # dipole arrays in AO basis
     mu_ao_x = np.asarray(mints.ao_dipole()[0])
     mu_ao_y = np.asarray(mints.ao_dipole()[1])
     mu_ao_z = np.asarray(mints.ao_dipole()[2])
 
+    # electronic dipole expectation value with CQED-RHF density
+    mu_exp_x = np.einsum("pq,pq->", 2 * mu_ao_x, D)
+    mu_exp_y = np.einsum("pq,pq->", 2 * mu_ao_y, D)
+    mu_exp_z = np.einsum("pq,pq->", 2 * mu_ao_z, D)
+
+    # get electronic dipole expectation value
+    mu_exp_el = np.array([mu_exp_x, mu_exp_y, mu_exp_z])
+
+    # \lambda \cdot < \mu > where < \mu > contains only
+    # electronic terms 
+    l_dot_mu_exp = np.dot(lambda_vector, mu_exp_el)
+
     # transform dipole array to CQED-RHF basis
     mu_cmo_x = np.dot(C.T, mu_ao_x).dot(C)
     mu_cmo_y = np.dot(C.T, mu_ao_y).dot(C)
     mu_cmo_z = np.dot(C.T, mu_ao_z).dot(C)
-
-    # \lambda \cdot < \mu >
-    # e.g. line 6 of Eq. (18) in [McTague:2021:ChemRxiv]
-    l_dot_mu_exp = 0.0
-    for i in range(0, 3):
-        l_dot_mu_exp += lambda_vector[i] * cqed_rhf_dipole_moment[i]
 
     # \lambda \cdot \mu_{el}
     # e.g. line 4 Eq. (18) in [McTague:2021:ChemRxiv]
@@ -150,14 +143,8 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, di
     l_dot_mu_el += lambda_vector[1] * mu_cmo_y
     l_dot_mu_el += lambda_vector[2] * mu_cmo_z
 
-    # dipole constants to add to E_CQED_CIS,
-    #  0.5 * (\lambda \cdot \mu_{nuc})** 2
-    #      - (\lambda \cdot <\mu> ) ( \lambda \cdot \mu_{nuc})
-    # +0.5 * (\lambda \cdot <\mu>) ** 2
-    # Eq. (14) of [McTague:2021:ChemRxiv]
-    d_c = (
-        0.5 * l_dot_mu_nuc ** 2 - l_dot_mu_nuc * l_dot_mu_exp + 0.5 * l_dot_mu_exp ** 2
-    )
+    # Pauli-Fierz (\lambda \cdot <\mu>_e ) ^ 2
+    d_c = 0.5 * l_dot_mu_exp**2
 
     # check to see if d_c what we have from CQED-RHF calculation
     assert np.isclose(d_c, cqed_rhf_dict["DIPOLE ENERGY"])
@@ -251,37 +238,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict, di
                                 * (s == t - 1)
                                 * (i == j)
                             )
-                            # now handle diagonal in electronic term
-                            if a == b and i == j and s == t + 1 and diag==True:
-                                # l dot <mu> term
-                                Hep[ias, jbt] += (
-                                    np.sqrt(t + 1)
-                                    * np.sqrt(omega_val / 2)
-                                    * l_dot_mu_exp
-                                )
-                                # l dot mu terms
-                                for k in range(0, ndocc):
-                                    # sum over occupied indices
-                                    Hep[ias, jbt] -= (
-                                        np.sqrt(t + 1)
-                                        * np.sqrt(omega_val / 2)
-                                        * l_dot_mu_el[k, k]
-                                    )
 
-                            # now handle diagonal in electronic term
-                            if a == b and i == j and s == t - 1 and diag==True:
-                                # l dot <mu> term
-                                Hep[ias, jbt] += (
-                                    np.sqrt(t) * np.sqrt(omega_val / 2) * l_dot_mu_exp
-                                )
-                                # l dot mu terms
-                                for k in range(0, ndocc):
-                                    # sum over occupied indices
-                                    Hep[ias, jbt] -= (
-                                        np.sqrt(t)
-                                        * np.sqrt(omega_val / 2)
-                                        * l_dot_mu_el[k, k]
-                                    )
     # Form Htot from sum of all terms
     Htot = Hp + Hep + H1e + H2e + H2edp
     # now diagonalize H
