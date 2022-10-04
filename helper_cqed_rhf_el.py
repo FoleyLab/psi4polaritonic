@@ -136,7 +136,7 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
 
     # Add Pauli-Fierz terms to H_core
     # Eq. (11) in [McTague:2021:ChemRxiv]
-    H = H_0 + Q_PF 
+    H = H_0 + Q_PF + d_PF
 
     # Overlap for DIIS
     S = mints.ao_overlap()
@@ -178,12 +178,12 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         K = np.einsum("prqs,rs->pq", I, D)
 
         # Pauli-Fierz 2-e dipole-dipole terms, line 2 of Eq. (12) in [McTague:2021:ChemRxiv]
-        #M = np.einsum("pq,rs,rs->pq", l_dot_mu_el, l_dot_mu_el, D)
+        M = np.einsum("pq,rs,rs->pq", l_dot_mu_el, l_dot_mu_el, D)
         N = np.einsum("pr,qs,rs->pq", l_dot_mu_el, l_dot_mu_el, D)
 
         # Build fock matrix: [Szabo:1996] Eqn. 3.154, pp. 141
         # plus Pauli-Fierz terms Eq. (12) in [McTague:2021:ChemRxiv]
-        F = H + 2 * J - K - N
+        F = H + 2 * J - K + 2 * M - N
 
         diis_e = np.einsum("ij,jk,kl->il", F, D, S) - np.einsum("ij,jk,kl->il", S, D, F)
         diis_e = A.dot(diis_e).dot(A)
@@ -191,7 +191,7 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
 
         # SCF energy and update: [Szabo:1996], Eqn. 3.184, pp. 150
         # Pauli-Fierz terms Eq. 13 of [McTague:2021:ChemRxiv]
-        SCF_E = np.einsum("pq,pq->", F + H, D) + Enuc 
+        SCF_E = np.einsum("pq,pq->", F + H, D) + Enuc + d_c
 
         print(
             "SCF Iteration %3d: Energy = %4.16f   dE = % 1.5E   dRMS = %1.5E"
@@ -220,11 +220,14 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         # dot field vector into <\mu>_e
         l_dot_mu_exp = np.dot(lambda_vector, mu_exp_el)
 
+        # Pauli-Fierz 1-e dipole terms scaled <\mu>_e
+        d_PF = -1 * l_dot_mu_exp * l_dot_mu_el
+
         # Pauli-Fierz (\lambda \cdot <\mu>_e ) ^ 2
         d_c = 0.5 * l_dot_mu_exp**2
 
         # update Core Hamiltonian
-        H = H_0 + Q_PF 
+        H = H_0 + Q_PF + d_PF
 
         if SCF_ITER == maxiter:
             psi4.core.clean()
@@ -238,13 +241,19 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
     SCF_1E = np.einsum("pq,pq->", 2 * H_0, D)
     SCF_2E_J = np.einsum("pq,pq->", 2 * J, D)
     SCF_2E_K = np.einsum("pq,pq->", -1 * K, D)
+    PF_1E_d = np.einsum("pq,pq->", 2 * d_PF, D)
     PF_1E_Q = np.einsum("pq,pq->", 2 * Q_PF, D)
+    PF_2E_M = np.einsum("pq,pq->", 2 * M, D)
     PF_2E_N = np.einsum("pq,pq->", -1 * N, D)
 
     # sum these together and see if equal to SCF_E - Enuc - d_c
-    PF_E_el = SCF_1E + SCF_2E_J + SCF_2E_K + PF_1E_Q + PF_2E_N
+    PF_E_el = SCF_1E + SCF_2E_J + SCF_2E_K + PF_1E_d + PF_1E_Q + PF_2E_M + PF_2E_N
     # does this agree with the final SCF energy when you subtract off nuclear contribut
-    assert np.isclose(SCF_E - Enuc, PF_E_el, 1e-9)
+    assert np.isclose(SCF_E - Enuc - d_c, PF_E_el, 1e-9)
+
+    # Eugene claims that PF_2E_M + PF_1E_d + d_c  = 0 
+    PF_superfluous = PF_2E_M + PF_1E_d + d_c
+    assert np.isclose(PF_superfluous, 0, 1e-9)
 
     cqed_rhf_dict = {
         "RHF ENERGY": psi4_rhf_energy,
