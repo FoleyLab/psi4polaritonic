@@ -199,7 +199,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                         # orbital energy contribution to A + \Delta ... this also includes 
                         # the DSE terms that contributed to the CQED-RHF energy 
                         A_matrix[ia, jb] += eps_v[a] 
-                        A_matrix[ia, jb] -= eps_o[i] 
+                        A_matrix[ia, jb] -= eps_o[i]
                         
                         
                         # diagonal \omega term
@@ -211,6 +211,9 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     S0_offset = 1
     R1_offset = ndocc * nvirt + 1
     S1_offset = ndocc * nvirt + 2
+
+    # CIS DSE Hamiltonian
+    H_CIS_DSE = np.zeros((ndocc * nvirt, ndocc * nvirt), dtype=float)
 
     # CISS Hamiltonians
     H_CISS_PF = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
@@ -228,6 +231,9 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     H_CISS_JC[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
     H_CISS_JC[R1_offset:S1_offset, S0_offset:R1_offset] = g
     H_CISS_JC[S1_offset:,          R0_offset:S0_offset] = g_dag
+
+    # A + \Delta for CIS_DSE
+    H_CIS_DSE = A_matrix + D_matrix
 
     # A + \Delta for PF
     H_CISS_PF[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix + D_matrix
@@ -284,7 +290,9 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     # JC
     H_CIS_JC[CIS_R1_offset, CIS_R1_offset] = omega_val
 
-    # diagonalize the total QED-CIS matrix and the 
+    # diagonalize different versions of the QED-CISS matrix
+    E_CIS_DSE, C_CIS_DSE = np.linalg.eigh(H_CIS_DSE)
+
     E_CISS_PF, C_CISS_PF = np.linalg.eigh(H_CISS_PF)
     E_CISS_JC, C_CISS_JC = np.linalg.eigh(H_CISS_JC)
 
@@ -293,12 +301,14 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
 
     cqed_cis_dict = {
+        "H CIS-DSE": H_CIS_DSE,
         "RHF ENERGY": scf_e,
         "CQED-RHF ENERGY": cqed_scf_e,
         "CISS-PF ENERGY": E_CISS_PF,
         "CISS-JC ENERGY": E_CISS_JC,
         "CIS-PF ENERGY": E_CIS_PF,
         "CIS-JC ENERGY": E_CIS_JC,
+        "CIS-DSE ENERGY": E_CIS_DSE, 
     }
-
+    print(ndocc * nvirt)
     return cqed_cis_dict
