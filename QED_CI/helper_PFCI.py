@@ -421,31 +421,59 @@ import numpy as np
 
 
 
-class HamiltonianGenerator:
+class PFHamiltonianGenerator:
     """
     class for Full CI matrix elements
     """
 
-    def __init__(self, H_spin, mo_spin_eri):
+    def __init__(self, H_spin, pf_mo_spin_eri, g_spin, omega, N_photon):
         """
-        Constructor for MatrixElements
+        Constructor for matrix elements of the PF Hamiltonian
         """
-
         self.Hspin = H_spin
-        self.antiSym2eInt = mo_spin_eri
+        self.antiSym2eInt = pf_mo_spin_eri
+        self.gspin = g_spin
+        self.omega = omega
+        self.Np = N_photon
 
-    def generateMatrix(self, detList):
-        """
-        Generate CI Matrix
-        """
 
+    def generatePFMatrix(self, detList):
+        """
+        Generate the Pauli-Fierz Hamiltonian matrix
+        """
         numDet = len(detList)
-        matrix = np.zeros((numDet, numDet))
-        for i in range(numDet):
-            for j in range(i + 1):
-                matrix[i, j] = self.calcMatrixElement(detList[i], detList[j])
-                matrix[j, i] = matrix[i, j]
-        return matrix
+        numP = self.Np
+        PF_H_Matrix = np.zeros((numP * numDet, numP * numDet))
+        for s in range(numP):
+            for i in range(numDet):
+                si = s * numDet + i
+                for t in range(numP):
+                    for j in range(numDet):
+                        tj = t * numDet + j
+
+                        # diagonal in electronic and photonic
+                        if s==j and i==j:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElement(detList[i], detList[j]) + self.omega * s
+                        # diagonal in photonic only
+                        elif s==j:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElement(detList[i], detList[j])
+
+                        # diagonal in electronic, off-diagonal in photonic
+                        elif i==j and s==t+1:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1phot(detList[i]) * np.sqrt(t+1)
+                        elif i==j and s == t-1:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1phot(detList[i]) * np.sqrt(t)
+                        
+                        # off-diagonal in electronic and in photonic
+                        elif s==t+1:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1el1phot(detList[i], detList[j]) * np.sqrt(t+1)
+                        elif s==t-1:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1el1phot(detList[i], detList[j]) * np.sqrt(t)
+
+        return PF_H_Matrix
+
+
+        
 
     def calcMatrixElement(self, det1, det2):
         """
@@ -490,6 +518,32 @@ class HamiltonianGenerator:
         for n in common:
             Relem += self.antiSym2eInt[m, n, p, n]
         return sign * (Helem + Relem)
+
+    def calcMatrixElementDiffIn1el1phot(self, det1, det2):
+        """
+        Calculate a matrix element between two determinants where the determinants
+        differ by 1 electronic spin orbital and 1 photon state...
+        Note: Needs generalizing before we can do arbitrary photonic states
+        """
+        unique1, unique2, sign = det1.getUniqueOrbitalsInMixIndexListsPlusSign(det2)
+        m = unique1[0]
+        p = unique2[0]
+        Gelem = self.gspin[m, p]
+
+        return sign * Gelem
+
+    def calcMatrixElementDiffIn1phot(self, det):
+        """
+        Calculate a matrix element between two determinants that are idetnical
+        in the electronic spin orbital occupation and differ by 1 photon state....
+        Note: Needs generalizing before we can do arbitrary photonic states
+        """
+        spinObtList = det.getOrbitalMixedIndexList()
+        Gelem = 0.0
+        for m in spinObtList:
+            Gelem += self.gspin[m, m]
+        return Gelem
+
 
     def calcMatrixElementIdentialDet(self, det):
         """
