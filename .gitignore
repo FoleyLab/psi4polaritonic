@@ -1,8 +1,13 @@
+QED_CI/.ipynb_checkpoints/*
+.ipynb_checkpoints/*
 # tar files
 *.tar
 # Object file
 *.o
 
+# .pyc
+*.pyc
+QED_CI/*.pyc
 # xyz files
 *.xyz
 

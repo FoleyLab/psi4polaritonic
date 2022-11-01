@@ -442,7 +442,7 @@ class PFHamiltonianGenerator:
         Generate the Pauli-Fierz Hamiltonian matrix
         """
         numDet = len(detList)
-        numP = self.Np
+        numP = self.Np + 1
         PF_H_Matrix = np.zeros((numP * numDet, numP * numDet))
         for s in range(numP):
             for i in range(numDet):
@@ -451,33 +451,29 @@ class PFHamiltonianGenerator:
                     for j in range(numDet):
                         tj = t * numDet + j
 
+                        #print(F's:{s}, i:{i}, si:{si}, t:{t}, j:{j}, tj:{tj}')
                         # diagonal in electronic and photonic
-                        if s==j and i==j:
-                            PF_H_Matrix[si, tj] = self.calcMatrixElement(detList[i], detList[j]) + self.omega * s
+                        if s==t and i==j:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElement_delta_s_t(detList[i], detList[j]) + self.omega * s
                         # diagonal in photonic only
-                        elif s==j:
-                            PF_H_Matrix[si, tj] = self.calcMatrixElement(detList[i], detList[j])
+                        elif s==t and i!=j:
+                            PF_H_Matrix[si, tj] = self.calcMatrixElement_delta_s_t(detList[i], detList[j])
 
                         # diagonal in electronic, off-diagonal in photonic
-                        elif i==j and s==t+1:
-                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1phot(detList[i]) * np.sqrt(t+1)
-                        elif i==j and s == t-1:
-                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1phot(detList[i]) * np.sqrt(t)
-                        
-                        # off-diagonal in electronic and in photonic
                         elif s==t+1:
-                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1el1phot(detList[i], detList[j]) * np.sqrt(t+1)
-                        elif s==t-1:
-                            PF_H_Matrix[si, tj] = self.calcMatrixElementDiffIn1el1phot(detList[i], detList[j]) * np.sqrt(t)
+                            print(F'DiffIn1Phot -> s:{s}, i:{i}, si:{si}, t:{t}, j:{j}, tj:{tj}')
+                            PF_H_Matrix[si, tj] = self.calcMatrixElement_delta_s_t_pm_1(detList[i], detList[j]) * np.sqrt(t+1)
+                        elif s == t-1:
+                            print(F'DiffIn1Phot -> s:{s}, i:{i}, si:{si}, t:{t}, j:{j}, tj:{tj}')
+                            PF_H_Matrix[si, tj] = self.calcMatrixElement_delta_s_t_pm_1(detList[i], detList[j]) * np.sqrt(t)
+                        
 
         return PF_H_Matrix
-
-
         
 
-    def calcMatrixElement(self, det1, det2):
+    def calcMatrixElement_delta_s_t(self, det1, det2):
         """
-        Calculate a matrix element by two determinants
+        Calculate a matrix element by two determinants assuming photonic bra is equal to photonic ket: <s|t> -> <s|s>
         """
         
         numUniqueOrbitals = None
@@ -490,6 +486,26 @@ class PFHamiltonianGenerator:
                 return self.calcMatrixElementDiffIn2(det1, det2)
             elif numUniqueOrbitals == 1:
                 return self.calcMatrixElementDiffIn1(det1, det2)
+            else:
+                # 
+                return 0.0
+        else:
+            return 0.0
+    
+    def calcMatrixElement_delta_s_t_pm_1(self, det1, det2):
+        """
+        Calculate a matrix element by two determinants assuming photonic bra 
+        differs from photonic ket by \pm 1 (<s|b + b^\dagger|t> -> \delta_{s,t+1} + \delta_{s,t-1})
+        """
+        
+        numUniqueOrbitals = None
+        if det1.diff2OrLessOrbitals(det2):
+            numUniqueOrbitals = det1.numberOfTotalDiffOrbitals(det2)
+            if numUniqueOrbitals == 0:
+                #print(F' cal matrix element for {det1} and {det2}\n')
+                return self.calcMatrixElementDiffIn1phot(det1)
+            if numUniqueOrbitals == 1:
+                return self.calcMatrixElementDiffIn1el1phot(det1, det2)
             else:
                 # 
                 return 0.0
