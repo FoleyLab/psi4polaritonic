@@ -209,26 +209,26 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         Cocc = C[:, :ndocc]
         D = np.einsum("pi,qi->pq", Cocc, Cocc)  # [Szabo:1996] Eqn. 3.145, pp. 139
 
-        # update electronic dipole expectation value
-        mu_exp_x = np.einsum("pq,pq->", 2 * mu_ao_x, D)
-        mu_exp_y = np.einsum("pq,pq->", 2 * mu_ao_y, D)
-        mu_exp_z = np.einsum("pq,pq->", 2 * mu_ao_z, D)
-
-        # get electronic dipole expectation value
-        mu_exp_el = np.array([mu_exp_x, mu_exp_y, mu_exp_z])
-
-        # dot field vector into <\mu>_e
-        l_dot_mu_exp = np.dot(lambda_vector, mu_exp_el)
-
-        # Pauli-Fierz (\lambda \cdot <\mu>_e ) ^ 2
-        d_c = 0.5 * l_dot_mu_exp**2
-
         # update Core Hamiltonian
         H = H_0 + Q_PF 
 
         if SCF_ITER == maxiter:
             psi4.core.clean()
             raise Exception("Maximum number of SCF cycles exceeded.")
+
+    # update electronic dipole expectation value
+    mu_exp_x = np.einsum("pq,pq->", 2 * mu_ao_x, D)
+    mu_exp_y = np.einsum("pq,pq->", 2 * mu_ao_y, D)
+    mu_exp_z = np.einsum("pq,pq->", 2 * mu_ao_z, D)
+
+    # get electronic dipole expectation value
+    mu_exp_el = np.array([mu_exp_x, mu_exp_y, mu_exp_z])
+
+    # dot field vector into <\mu>_e
+    l_dot_mu_exp = np.dot(lambda_vector, mu_exp_el)
+
+    # Pauli-Fierz (\lambda \cdot <\mu>_e ) ^ 2
+    d_c = 0.5 * l_dot_mu_exp**2
 
     print("Total time for SCF iterations: %.3f seconds \n" % (time.time() - t))
     print("QED-RHF   energy: %.8f hartree" % SCF_E)
