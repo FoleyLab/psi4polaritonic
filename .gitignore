@@ -1,3 +1,5 @@
+.DS_Store
+
 # tar files
 *.tar
 # Object file
@@ -14,9 +16,12 @@
 
 # notebook checkpoints
 .ipynb_checkpoints/*
+conductivity_test/.ipynb_checkpoints/
+QED_CI/.ipynb_checkpoints/
 
 # pycache files
 __pycache__/*
+conductivity_test/__pycache__/
 
 # psi4 timer files
 timer.dat
