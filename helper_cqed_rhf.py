@@ -257,5 +257,8 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         "NUCLEAR DIPOLE MOMENT": mu_nuc,
         "DIPOLE ENERGY": d_c,
         "NUCLEAR REPULSION ENERGY": Enuc,
+        "OVERLAP MATRIX" : S,
+        "PF FOCK MATRIX" : F,
+        "PF DIAGONAL FOCK MATRIX" : Fp
     }
     return cqed_rhf_dict
