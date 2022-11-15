@@ -207,7 +207,12 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
 
         # Build fock matrix: [Szabo:1996] Eqn. 3.154, pp. 141
         # plus Pauli-Fierz terms Eq. (12) in [McTague:2021:ChemRxiv]
-        F = H + J * 2 - K + 2 * M - N
+        # canonical Fock matrix
+        Fc = H_0 + 2 * J - K
+        # DSE Fock Matrix
+        Fdse = Q_PF + d_PF + 2 * M - N
+        # total Fock matrix
+        F = Fc + Fdse
 
         diis_e = np.einsum("ij,jk,kl->il", F, D, S) - np.einsum("ij,jk,kl->il", S, D, F)
         diis_e = A.dot(diis_e).dot(A)
@@ -306,6 +311,10 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         "NUCLEAR DIPOLE MOMENT": np.array([mu_nuc_x, mu_nuc_y, mu_nuc_z]),
         "DIPOLE ENERGY": d_c,
         "NUCLEAR REPULSION ENERGY": Enuc,
+        "A MATRIX": A,
+        "CANONICAL FOCK MATRIX": Fc,
+        "DSE FOCK MATRIX": Fdse,
+        "TOTAL FOCK MATRIX": F
     }
 
     return cqed_rhf_dict
