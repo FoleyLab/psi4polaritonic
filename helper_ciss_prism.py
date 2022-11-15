@@ -74,6 +74,8 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     C = cqed_rhf_dict["CQED-RHF C"]
     D = cqed_rhf_dict["CQED-RHF DENSITY MATRIX"]
     eps = cqed_rhf_dict["CQED-RHF EPS"]
+    Fc = cqed_rhf_dict["CANONICAL FOCK MATRIX"]
+    Fdse = cqed_rhf_dict["DSE FOCK MATRIX"]
 
     # Create instance of MintsHelper class
     mints = psi4.core.MintsHelper(wfn.basisset())
@@ -140,6 +142,12 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     mu_cmo_y = np.dot(C.T, mu_ao_y).dot(C)
     mu_cmo_z = np.dot(C.T, mu_ao_z).dot(C)
 
+    # transform canonical Fock matrix to the CQED-RHF basis
+    Fc_cmo = np.dot(C.T, Fc).dot(C)
+
+    # transform DSE contribution to Fock matrix to the CQED-RHF basis
+    Fdse_cmo = np.dot(C.T, Fdse).dot(C)
+
     # \lambda \cdot \mu_{el}
     # e.g. line 4 Eq. (18) in [McTague:2021:ChemRxiv]
     l_dot_mu_el = lambda_vector[0] * mu_cmo_x
@@ -182,26 +190,28 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                     B = b + ndocc
                     jb = j * nvirt + b
                     
-                    # ERI contribution to A + \Delta
+                    # ERI contribution to A 
                     A_matrix[ia, jb] = (2.0 * ovov[i, a, j, b] - oovv[i, j, a, b])
+
+                    # Canonical Fock matrix contribution to A
+                    A_matrix[ia, jb] += Fc_cmo[A, B] * (i == j)
+                    A_matrix[ia, jb] -= Fc_cmo[i, j] * (a == b)
                     
-                    # 2-electron dipole contribution to A + \Delta
+                    # 2-electron dipole contribution to \Delta
                     D_matrix[ia, jb] += 2.0 * l_dot_mu_el[i, A] * l_dot_mu_el[j, B]
                     D_matrix[ia, jb] -= l_dot_mu_el[i, j] * l_dot_mu_el[A, B]
+
+                    # DSE Fock matrix contribution to \Delta
+                    D_matrix[ia, jb] += Fdse_cmo[A, B] * (i == j)
+                    D_matrix[ia, jb] -= Fdse_cmo[i, j] * (a == b)
                     
                     # bilinear coupling contributions to G
                     # off-diagonal terms (plus occasional diagonal terms)
                     G[ia, jb] += np.sqrt(omega_val / 2) * l_dot_mu_el[i, j] * (a == b)
                     G[ia, jb] -= np.sqrt(omega_val / 2) * l_dot_mu_el[A, B] * (i == j)
                     
-                    # diagonal contributions to A_p_D, G, and \Omega matrix
+                    # diagonal contributions \Omega matrix
                     if i == j and a == b:
-                        # orbital energy contribution to A + \Delta ... this also includes 
-                        # the DSE terms that contributed to the CQED-RHF energy 
-                        A_matrix[ia, jb] += eps_v[a] 
-                        A_matrix[ia, jb] -= eps_o[i]
-                        
-                        
                         # diagonal \omega term
                         Omega[ia, jb] = omega_val
                         
@@ -219,6 +229,11 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     H_CISS_PF = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
     H_CISS_JC = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2), dtype=complex)
 
+    # Just the DSE contribution to the CISS-PF Hamiltonian
+    H_CISS_DSE = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2))
+    # Just the bilinear coupling contribution to the CISS-PF Hamiltonian
+    H_CISS_BLC = np.zeros((ndocc * nvirt * 2 + 2, ndocc * nvirt * 2 + 2))
+
     # build the supermatrix
     # g coupling
     # PF
@@ -226,6 +241,10 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     H_CISS_PF[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
     H_CISS_PF[R1_offset:S1_offset, S0_offset:R1_offset] = g
     H_CISS_PF[S1_offset:,          R0_offset:S0_offset] = g_dag
+
+    # add the g terms to the BLC matrix
+    H_CISS_BLC += H_CISS_PF
+
     # JC
     H_CISS_JC[R0_offset:S0_offset, S1_offset:] = g
     H_CISS_JC[S0_offset:R1_offset, R1_offset:S1_offset] = g_dag
@@ -237,6 +256,9 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
     # A + \Delta for PF
     H_CISS_PF[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix + D_matrix
+
+    # \Delta for H_CISS_DSE
+    H_CISS_DSE[S0_offset:R1_offset, S0_offset:R1_offset] = D_matrix
 
     # A for JC
     H_CISS_JC[S0_offset:R1_offset, S0_offset:R1_offset] = A_matrix
@@ -250,6 +272,9 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     # A + \Delta + \Omega for PF
     H_CISS_PF[S1_offset:, S1_offset:] = A_matrix + D_matrix + Omega
 
+    # \Delta for H_CISS_DSE
+    H_CISS_DSE[S1_offset:, S1_offset:] = D_matrix
+
     # A + \Omega for JC
     H_CISS_JC[S1_offset:, S1_offset:] = A_matrix + Omega
 
@@ -257,6 +282,11 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     # PF
     H_CISS_PF[S1_offset:,S0_offset:R1_offset] = G
     H_CISS_PF[S0_offset:R1_offset, S1_offset:] = G
+
+    # H_CISS_BLC
+    H_CISS_BLC[S1_offset:,S0_offset:R1_offset] = G
+    H_CISS_BLC[S0_offset:R1_offset, S1_offset:] = G
+
     # JC
     H_CISS_JC[S1_offset:,S0_offset:R1_offset] = G
     H_CISS_JC[S0_offset:R1_offset, S1_offset:] = G
@@ -302,6 +332,8 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
     cqed_cis_dict = {
         "H CIS-DSE": H_CIS_DSE,
+        "H CISS-DSE" : H_CISS_DSE,
+        "H CISS-BLC" : H_CISS_BLC,
         "RHF ENERGY": scf_e,
         "CQED-RHF ENERGY": cqed_scf_e,
         "CISS-PF ENERGY": E_CISS_PF,
