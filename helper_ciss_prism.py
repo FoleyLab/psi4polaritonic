@@ -243,7 +243,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
     H_CISS_PF[S1_offset:,          R0_offset:S0_offset] = g_dag
 
     # add the g terms to the BLC matrix
-    H_CISS_BLC += H_CISS_PF
+    H_CISS_BLC += np.real(H_CISS_PF)
 
     # JC
     H_CISS_JC[R0_offset:S0_offset, S1_offset:] = g
@@ -340,7 +340,9 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
         "CISS-JC ENERGY": E_CISS_JC,
         "CIS-PF ENERGY": E_CIS_PF,
         "CIS-JC ENERGY": E_CIS_JC,
-        "CIS-DSE ENERGY": E_CIS_DSE, 
+        "CIS-DSE ENERGY": E_CIS_DSE,
+        "C VECTOR": C_CISS_PF, 
+        "R1 OFFSET": R1_offset 
     }
     print(ndocc * nvirt)
     return cqed_cis_dict
