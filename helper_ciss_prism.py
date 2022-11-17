@@ -191,7 +191,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                     jb = j * nvirt + b
                     
                     # ERI contribution to A 
-                    A_matrix[ia, jb] = (2.0 * ovov[i, a, j, b] - oovv[i, j, a, b])
+                    A_matrix[ia, jb] += (2.0 * ovov[i, a, j, b] - oovv[i, j, a, b])
 
                     # Canonical Fock matrix contribution to A
                     A_matrix[ia, jb] += Fc_cmo[A, B] * (i == j)
@@ -211,9 +211,7 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
                     G[ia, jb] -= np.sqrt(omega_val / 2) * l_dot_mu_el[A, B] * (i == j)
                     
                     # diagonal contributions \Omega matrix
-                    if i == j and a == b:
-                        # diagonal \omega term
-                        Omega[ia, jb] = omega_val
+                    Omega[ia, jb] += omega_val * (a == b) * (i == j)
                         
 
     # define the offsets
