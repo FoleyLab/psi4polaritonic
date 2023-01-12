@@ -144,15 +144,21 @@ def cs_cqed_cis(lambda_vector, omega_val, molecule_string, psi4_options_dict):
 
     # transform canonical Fock matrix to the CQED-RHF basis
     Fc_cmo = np.dot(C.T, Fc).dot(C)
+    Fc_cmo_alt = np.einsum("pu, uv, vq->pq", C.T, Fc, C)
+    assert np.allclose(Fc_cmo, Fc_cmo_alt)
 
     # transform DSE contribution to Fock matrix to the CQED-RHF basis
     Fdse_cmo = np.dot(C.T, Fdse).dot(C)
+    Fdse_cmo_alt = np.einsum("pu, uv, vq->pq", C.T, Fdse, C)
+    assert np.allclose(Fdse_cmo, Fdse_cmo_alt)
 
     # \lambda \cdot \mu_{el}
     # e.g. line 4 Eq. (18) in [McTague:2021:ChemRxiv]
     l_dot_mu_el = lambda_vector[0] * mu_cmo_x
     l_dot_mu_el += lambda_vector[1] * mu_cmo_y
     l_dot_mu_el += lambda_vector[2] * mu_cmo_z
+
+    # compute Koch's definition of the Fock matrix 
 
     # Pauli-Fierz (\lambda \cdot <\mu>_e ) ^ 2
     d_c = 0.5 * l_dot_mu_exp**2
