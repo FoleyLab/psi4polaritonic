@@ -246,6 +246,9 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
     # does this agree with the final SCF energy when you subtract off nuclear contribut
     assert np.isclose(SCF_E - Enuc, PF_E_el, 1e-9)
 
+    # transform \lambda \cdot \mu to CMO basis
+    l_dot_mu_cmo = np.dot(C.T, l_dot_mu_el).dot(C)
+
     cqed_rhf_dict = {
         "RHF ENERGY": psi4_rhf_energy,
         "CQED-RHF ENERGY": SCF_E,
@@ -257,7 +260,9 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         "NUCLEAR DIPOLE MOMENT": mu_nuc,
         "DIPOLE ENERGY (1/2 (\lambda \cdot <\mu>_e)^2)": d_c,
         "NUCLEAR REPULSION ENERGY": Enuc,
-        "PF 1-E DIPOLE MATRIX AO" : d_PF,
+        "PF 1-E SCALED DIPOLE MATRIX AO" : d_PF,
+        "PF 1-E DIPOLE MATRIX AO" : l_dot_mu_el,
+        "PF 1-E DIPOLE MATRIX MO" : l_dot_mu_cmo,
         "PF 1-E QUADRUPOLE MATRIX AO" : Q_PF,
         "1-E KINETIC MATRIX AO" : T,
         "1-E POTENTIAL MATRIX AO" : V

@@ -4,9 +4,12 @@ set terminal postscript enhanced color size 8in, 5.59in font 'Helvetica'
 set key bottom left
 
 set output 'compare_prism_mghp_pes_lz_0.01.eps'
-set ylabel "Energy (Hartree)"
+set ylabel "Energy (Hartrees)"
 set xlabel "Bondlength (Angstroms)"
 set yrange [-199.77: -199.57]
+set xrange [1.25: 2.75]
+set format y "%.3f"
+set format x "%.2f"
 plot 'prism_mghp_pes_lambda_0.01.txt' u 1:3 w lp lt 1 pt 6 lc rgb 'black' lw 5 t 'CISS-PF', \
 'prism_mghp_pes_lambda_0.01.txt' u 1:4 w lp lt 1 pt 6 lc rgb 'black' lw 5 notitle, \
 'prism_mghp_pes_lambda_0.01.txt' u 1:6 w lp lt 2 pt 6 lc rgb '#DC143C' lw 5 t 'CISS-JC', \
