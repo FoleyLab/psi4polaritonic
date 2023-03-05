@@ -253,9 +253,13 @@ def cqed_rhf(lambda_vector, molecule_string, psi4_options_dict):
         "CQED-RHF DENSITY MATRIX": D,
         "CQED-RHF EPS": e,
         "PSI4 WFN": wfn,
-        "CQED-RHF DIPOLE MOMENT": mu_exp_el + mu_nuc,
+        "CQED-RHF ELECTRONIC DIPOLE MOMENT": mu_exp_el,
         "NUCLEAR DIPOLE MOMENT": mu_nuc,
-        "DIPOLE ENERGY": d_c,
+        "DIPOLE ENERGY (1/2 (\lambda \cdot <\mu>_e)^2)": d_c,
         "NUCLEAR REPULSION ENERGY": Enuc,
+        "PF 1-E DIPOLE MATRIX AO" : d_PF,
+        "PF 1-E QUADRUPOLE MATRIX AO" : Q_PF,
+        "1-E KINETIC MATRIX AO" : T,
+        "1-E POTENTIAL MATRIX AO" : V
     }
     return cqed_rhf_dict
